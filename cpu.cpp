@@ -655,7 +655,6 @@ void CPU::handle_input()
         default:
             break;
         }
-
     }
 }
 int CPU::disassemble(uint8_t opcode)
@@ -1146,7 +1145,8 @@ int CPU::disassemble(uint8_t opcode)
         rc(cycles);
         break;
     case 0xDB:
-        if(RAM[pc] != 3){
+        if (RAM[pc] != 3)
+        {
             A = ports[RAM[pc]];
         }
         pc++;
@@ -1310,7 +1310,6 @@ void CPU::run()
             {
                 generate_interrupt(0x10);
             }
-
         }
     }
 }
