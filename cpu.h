@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <SDL2/SDL.h>
+#include <SFML/Graphics.hpp>
 class CPU
 {
 public:
@@ -99,10 +100,11 @@ private:
     static int HandleResize(void *, SDL_Event *);
     void cpu_run(long cycles);
     void render();
-    SDL_Surface *surf;
-    SDL_Window *win;
-    SDL_Surface *winsurf;
-    static int resizef;
+    sf::RenderWindow *window;
+    sf::Uint8 *pixels;
+    sf::Image img;
+    sf::Sprite sprite;
+
 };
 #endif
 

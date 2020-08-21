@@ -11,7 +11,7 @@ void CPU::debug(const std::string &msg)
 {
     std::cout << msg << std::endl;
 }
-int CPU::resizef = 0;
+
 CPU::CPU(const std::string &rom)
 {
     std::fstream fs(rom, std::ios_base::in | std::ios_base::binary);
@@ -30,35 +30,9 @@ CPU::CPU(const std::string &rom)
         pc = 0;
         sp = 0;
         A = B = C = D = E = H = L = 0;
-        if (SDL_Init(SDL_INIT_VIDEO))
-        {
-            printf("%s\n", SDL_GetError());
-            exit(1);
-        }
-
-        // Create a window
-        win = SDL_CreateWindow(
-            "Space Invaders",
-            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-            2 * WIDTH, 2 * HEIGHT,
-            SDL_WINDOW_RESIZABLE);
-        if (!win)
-        {
-            puts("Failed to create window");
-            exit(1);
-        }
-
-        // Get surface
-        winsurf = SDL_GetWindowSurface(win);
-        if (!winsurf)
-        {
-            puts("Failed to get surface");
-            exit(1);
-        }
-        SDL_AddEventWatch(CPU::HandleResize, NULL);
-
-        // Create backbuffer surface
-        surf = SDL_CreateRGBSurface(0, WIDTH, HEIGHT, 32, 0, 0, 0, 0);
+        window = new sf::RenderWindow(sf::VideoMode(WIDTH, HEIGHT), "Space Invaders");
+        pixels = new sf::Uint8[WIDTH * HEIGHT * 4];
+        window->setVerticalSyncEnabled(true);
         debug("ROM CARGADA");
     }
 }
@@ -219,12 +193,12 @@ void CPU::push_psw()
 {
     RAM[sp - 1] = A;
     uint8_t psw = 0;
-      psw |= S << 7;
-      psw |= Z << 6;
-      psw |= AC << 4;
-      psw |= P << 2;
-      psw |= 1 << 1; // bit 1 is always 1
-      psw |= CY << 0;
+    psw |= S << 7;
+    psw |= Z << 6;
+    psw |= AC << 4;
+    psw |= P << 2;
+    psw |= 1 << 1; // bit 1 is always 1
+    psw |= CY << 0;
     RAM[sp - 2] = psw;
     sp -= 2;
 }
@@ -337,35 +311,45 @@ void CPU::jc()
     if (CY)
     {
         jmp();
-    }else pc += 2;
+    }
+    else
+        pc += 2;
 }
 void CPU::jnc()
 {
     if (!CY)
     {
         jmp();
-    }else pc += 2;
+    }
+    else
+        pc += 2;
 }
 void CPU::jz()
 {
     if (Z)
     {
         jmp();
-    }else pc += 2;
+    }
+    else
+        pc += 2;
 }
 void CPU::jnz()
 {
     if (!Z)
     {
         jmp();
-    }else pc += 2;
+    }
+    else
+        pc += 2;
 }
 void CPU::jm()
 {
     if (S)
     {
         jmp();
-    }else pc += 2;
+    }
+    else
+        pc += 2;
 }
 void CPU::jp()
 {
@@ -409,7 +393,8 @@ void CPU::cc(int &opbytes)
 void CPU::cnc(int &cycles)
 {
     if (!CY)
-    {   call();
+    {
+        call();
         cycles = 17;
     }
     else
@@ -585,98 +570,94 @@ void CPU::generate_interrupt(uint16_t addr)
 }
 void CPU::handle_input()
 {
-    SDL_Event ev;
-    while (SDL_PollEvent(&ev))
+    sf::Event ev;
+    while (window->pollEvent(ev))
     {
         switch (ev.type)
         {
-        case SDL_KEYDOWN:
-            switch (ev.key.keysym.sym)
+        case sf::Event::KeyPressed:
+            switch (ev.key.code)
             {
-            case 'c': // Insert coin
+            case sf::Keyboard::C: // Insert coin
                 ports[1] |= 1;
                 break;
-            case 's': // P1 Start
+            case sf::Keyboard::S: // P1 Start
                 ports[1] |= 1 << 2;
                 break;
-            case 'w': // P1 Shoot
+            case sf::Keyboard::W: // P1 Shoot
                 ports[1] |= 1 << 4;
                 break;
-            case 'a': // P1 Move Left
+            case sf::Keyboard::A: // P1 Move Left
                 ports[1] |= 1 << 5;
                 break;
-            case 'd': // P1 Move Right
+            case sf::Keyboard::D: // P1 Move Right
                 ports[1] |= 1 << 6;
                 break;
-            case SDLK_LEFT: // P2 Move Left
+            case sf::Keyboard::Left: // P2 Move Left
                 ports[2] |= 1 << 5;
                 break;
-            case SDLK_RIGHT: // P2 Move Right
+            case sf::Keyboard::Right: // P2 Move Right
                 ports[2] |= 1 << 6;
                 break;
-            case SDLK_RETURN: // P2 Start
+            case sf::Keyboard::Enter: // P2 Start
                 ports[1] |= 1 << 1;
                 break;
-            case SDLK_UP: // P2 Shoot
+            case sf::Keyboard::Up: // P2 Shoot
                 ports[2] |= 1 << 4;
+                break;
+            default:
                 break;
             }
             break;
 
-        case SDL_KEYUP:
-            switch (ev.key.keysym.sym)
+        case sf::Event::KeyReleased:
+            switch (ev.key.code)
             {
-            case 'c': // Insert coin
+            case sf::Keyboard::C: // Insert coin
                 ports[1] &= ~1;
                 break;
-            case 's': // P1 Start
+            case sf::Keyboard::S: // P1 Start
                 ports[1] &= ~(1 << 2);
                 break;
-            case 'w': // P1 shoot
+            case sf::Keyboard::W: // P1 shoot
                 ports[1] &= ~(1 << 4);
                 break;
-            case 'a': // P1 Move left
+            case sf::Keyboard::A: // P1 Move left
                 ports[1] &= ~(1 << 5);
                 break;
-            case 'd': // P1 Move Right
+            case sf::Keyboard::D: // P1 Move Right
                 ports[1] &= ~(1 << 6);
                 break;
-            case SDLK_LEFT: // P2 Move Left
+            case sf::Keyboard::Left: // P2 Move Left
                 ports[2] &= ~(1 << 5);
                 break;
-            case SDLK_RIGHT: // P2 Move Right
+            case sf::Keyboard::Right: // P2 Move Right
                 ports[2] &= ~(1 << 6);
                 break;
-            case SDLK_RETURN: // P2 Start
+            case sf::Keyboard::Enter: // P2 Start
                 ports[1] &= ~(1 << 1);
                 break;
-            case SDLK_UP: // P2 Shoot
+            case sf::Keyboard::Up: // P2 Shoot
                 ports[2] &= ~(1 << 4);
                 break;
 
-            case 'q': // Quit
-                exit(0);
+            case sf::Keyboard::Q: // Quit
+                window->close();
+                break;
+            default:
                 break;
             }
             break;
 
-        case SDL_QUIT:
-            exit(0);
+        case sf::Event::Closed:
+            window->close();
+            break;
+        default:
             break;
         }
+
     }
 }
-int CPU::HandleResize(void *userdata, SDL_Event *ev) {
-    if (ev->type == SDL_WINDOWEVENT) {
-        if (ev->window.event == SDL_WINDOWEVENT_RESIZED) {
-            CPU::resizef = 1;
-        }
-    }
-
-    return 0;  // Ignored
-}
-
-
 int CPU::disassemble(uint8_t opcode)
 {
     int cycles = 0;
@@ -1112,7 +1093,7 @@ int CPU::disassemble(uint8_t opcode)
         pc++;
         cycles = 10;
         break;
-       case 0xC8:
+    case 0xC8:
         rz(cycles);
         break;
     case 0XC9:
@@ -1135,10 +1116,14 @@ int CPU::disassemble(uint8_t opcode)
         cycles = 10;
         break;
     case 0XD3:
-        if(RAM[pc] == 2 || RAM[pc] == 4){
+        if (RAM[pc] == 2 || RAM[pc] == 4)
+        {
             cycles = 10;
         }
-        ports[RAM[pc]] = A;
+        else
+        {
+            ports[RAM[pc]] = A;
+        }
         pc++;
         cycles = 10;
         break;
@@ -1161,7 +1146,11 @@ int CPU::disassemble(uint8_t opcode)
         rc(cycles);
         break;
     case 0xDB:
+        if(RAM[pc] != 3){
+            A = ports[RAM[pc]];
+        }
         pc++;
+        cycles = 10;
         break;
     case 0xDE:
         sbi();
@@ -1229,64 +1218,83 @@ int CPU::disassemble(uint8_t opcode)
 void CPU::cpu_run(long cycles)
 {
     int i = 0;
-    //static int shift_amount;
-    //static uint16_t shift_register;
+    static int shift_amount = 0;
+    static uint16_t shift_register = 0;
     while (i < cycles)
     {
         uint8_t opcode = RAM[pc];
-        printf("%d %d %X %X %X [%X] %x %x %x %x %x -> %d\n", pc, sp, get_word(B, C), get_word(D, E), get_word(H, L), opcode, CY, AC, Z, S, P, A);
+        //printf("%d %d %X %X %X [%X] %x %x %x %x %x -> %d\n", pc, sp, get_word(B, C), get_word(D, E), get_word(H, L), opcode, CY, AC, Z, S, P, A);
         pc++;
+
+        if (opcode == 0xd3)
+        { // OUT
+            if (RAM[pc] == 2)
+            { // Set shift amount
+                shift_amount = A;
+            }
+            else if (RAM[pc] == 4)
+            { // Set data in shift register
+                shift_register = (A << 8) | (shift_register >> 8);
+            }
+        }
+        else if (opcode == 0xdb)
+        { // IN
+            if (RAM[pc] == 3)
+            { // Shift and read data
+                A = shift_register >> (8 - shift_amount);
+            }
+        }
         i += disassemble(opcode);
     }
 }
 void CPU::render()
 {
-    uint32_t *pix = (uint32_t *) surf->pixels;
 
     int i = 0x2400; // Start of Video RAM
+    window->clear(sf::Color::Black);
     for (int col = 0; col < WIDTH; col++)
     {
         for (int row = HEIGHT; row > 0; row -= 8)
         {
             for (int j = 0; j < 8; j++)
             {
-                int idx = (row - j) * WIDTH + col;
+                int idx = (col + (row - j) * WIDTH) * 4;
 
                 if (RAM[i] & 1 << j)
                 {
-                    pix[idx] = 0xFFFFFF;
+                    pixels[idx] = 255;
+                    pixels[idx + 1] = 255;
+                    pixels[idx + 2] = 255;
+                    pixels[idx + 3] = 255;
                 }
                 else
                 {
-                    pix[idx] = 0;
+                    pixels[idx] = 0;
+                    pixels[idx + 1] = 0;
+                    pixels[idx + 2] = 0;
+                    pixels[idx + 3] = 0;
                 }
             }
 
             i++;
         }
     }
-
-    if (CPU::resizef) {
-        winsurf = SDL_GetWindowSurface(win);
-    }
-    SDL_BlitScaled(surf, NULL, winsurf, NULL);
-
-    // Update window
-    if (SDL_UpdateWindowSurface(win))
-    {
-        puts(SDL_GetError());
-        exit(1);
-    }
+    sf::Texture texture;
+    img.create(WIDTH, HEIGHT, pixels);
+    texture.loadFromImage(img);
+    sprite.setTexture(texture);
+    window->draw(sprite);
+    window->display();
 }
 void CPU::run()
 {
-
-    uint32_t last_tic = SDL_GetTicks(); // milliseconds
-    while (1)
+    sf::Clock timer;
+    uint32_t last_tic = timer.getElapsedTime().asMilliseconds();
+    while (window->isOpen())
     {
-        if ((SDL_GetTicks() - last_tic) >= TIC)
+        if ((timer.getElapsedTime().asMilliseconds() - last_tic) >= TIC)
         {
-            last_tic = SDL_GetTicks();
+            last_tic = timer.getElapsedTime().asMilliseconds();
 
             cpu_run(CYCLES_PER_TIC / 2);
 
@@ -1294,7 +1302,6 @@ void CPU::run()
             {
                 generate_interrupt(0x08);
             }
-
             cpu_run(CYCLES_PER_TIC / 2);
 
             handle_input();
@@ -1304,11 +1311,6 @@ void CPU::run()
                 generate_interrupt(0x10);
             }
 
-            if (SDL_GetTicks() - last_tic > TIC)
-            {
-
-
-            }
         }
     }
 }
