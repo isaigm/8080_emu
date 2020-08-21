@@ -11,7 +11,11 @@ void CPU::debug(const std::string &msg)
 {
     std::cout << msg << std::endl;
 }
-
+CPU::~CPU()
+{
+    delete window;
+    delete [] pixels;
+}
 CPU::CPU(const std::string &rom)
 {
     std::fstream fs(rom, std::ios_base::in | std::ios_base::binary);
@@ -30,8 +34,11 @@ CPU::CPU(const std::string &rom)
         pc = 0;
         sp = 0;
         A = B = C = D = E = H = L = 0;
-        window = new sf::RenderWindow(sf::VideoMode(WIDTH, HEIGHT), "Space Invaders");
+        window = new sf::RenderWindow(sf::VideoMode(2 * WIDTH, 2 * HEIGHT), "Space Invaders");
         pixels = new sf::Uint8[WIDTH * HEIGHT * 4];
+        window->setPosition(sf::Vector2i((sf::VideoMode::getDesktopMode().width - 2 * WIDTH)/2,(sf::VideoMode::getDesktopMode().height - 2 * HEIGHT)/2));
+        texture.create(WIDTH, HEIGHT);
+        sprite.setScale(2, 2);
         window->setVerticalSyncEnabled(true);
         debug("ROM CARGADA");
     }
@@ -1279,9 +1286,7 @@ void CPU::render()
             i++;
         }
     }
-    sf::Texture texture;
-    img.create(WIDTH, HEIGHT, pixels);
-    texture.loadFromImage(img);
+    texture.update(pixels);
     sprite.setTexture(texture);
     window->draw(sprite);
     window->display();

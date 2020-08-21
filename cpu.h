@@ -2,12 +2,12 @@
 #define CPU_H
 #include <cstdint>
 #include <string>
-#include <SDL2/SDL.h>
 #include <SFML/Graphics.hpp>
 class CPU
 {
 public:
     CPU(const std::string &rom);
+    ~CPU();
     void run();
 
 private:
@@ -97,12 +97,11 @@ private:
     void rpo(int &opbytes);               //return if parity bit is zero
     void debug(const std::string &msg);
     void handle_input();
-    static int HandleResize(void *, SDL_Event *);
     void cpu_run(long cycles);
     void render();
     sf::RenderWindow *window;
     sf::Uint8 *pixels;
-    sf::Image img;
+    sf::Texture texture;
     sf::Sprite sprite;
 
 };
