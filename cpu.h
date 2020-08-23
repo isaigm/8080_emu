@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 class CPU
 {
 public:
@@ -19,6 +20,7 @@ private:
     uint8_t A, B, C, D, E, H, L; // Registros
     bool S = false, Z = false, P = false, CY = false, AC = false;
     bool interrupt_enabled = false;
+    uint8_t out_port3 = 0, last_out_port3 = 0, out_port5 = 0, last_out_port5 = 0;
     // Flags cy -> bit de acarreo, s -> signo, z -> bit que indica si alguna operacion da resultado cero
     //P -> bit de paridad -> el numero de bits a uno son contados, y si el total es un numero par, se pone a uno, si no se resetea a 0
     //AC -> bit de acarreo auxiliar
@@ -97,13 +99,15 @@ private:
     void rpo(int &opbytes);               //return if parity bit is zero
     void debug(const std::string &msg);
     void handle_input();
+    void play_sounds();
     void cpu_run(long cycles);
     void render();
-    sf::RenderWindow *window;
-    sf::Uint8 *pixels;
+    sf::RenderWindow *window = nullptr;
+    sf::Uint8 *pixels = nullptr;
     sf::Texture texture;
     sf::Sprite sprite;
-
+    sf::SoundBuffer sb;
+    sf::Sound sound;
 };
 #endif
 

@@ -1,8 +1,8 @@
 TEMPLATE = app
-CONFIG += console c++11
+CONFIG += console c++20
 CONFIG -= app_bundle
 CONFIG -= qt
-LIBS += -L/usr/local/lib -lSDL2 -lsfml-window -lsfml-graphics -lsfml-system
+LIBS += -lsfml-window -lsfml-graphics -lsfml-system -lsfml-audio
 
 SOURCES += \
         cpu.cpp \

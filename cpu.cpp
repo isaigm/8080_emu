@@ -14,7 +14,9 @@ void CPU::debug(const std::string &msg)
 CPU::~CPU()
 {
     delete window;
-    delete [] pixels;
+    delete[] pixels;
+    window = nullptr;
+    pixels = nullptr;
 }
 CPU::CPU(const std::string &rom)
 {
@@ -35,11 +37,13 @@ CPU::CPU(const std::string &rom)
         sp = 0;
         A = B = C = D = E = H = L = 0;
         window = new sf::RenderWindow(sf::VideoMode(2 * WIDTH, 2 * HEIGHT), "Space Invaders");
-        pixels = new sf::Uint8[WIDTH * HEIGHT * 4];
+        pixels = new sf::Uint8[WIDTH * HEIGHT * 5];
         window->setPosition(sf::Vector2i((sf::VideoMode::getDesktopMode().width - 2 * WIDTH)/2,(sf::VideoMode::getDesktopMode().height - 2 * HEIGHT)/2));
         texture.create(WIDTH, HEIGHT);
         sprite.setScale(2, 2);
+        sprite.setTexture(texture);
         window->setVerticalSyncEnabled(true);
+        sound.setBuffer(sb);
         debug("ROM CARGADA");
     }
 }
@@ -575,6 +579,17 @@ void CPU::generate_interrupt(uint16_t addr)
     pc = addr;
     interrupt_enabled = false;
 }
+/*
+ * puerto[1]
+    BIT 0   coin (0 when active)
+        1   P2 start button
+        2   P1 start button
+        3   ?
+        4   P1 shoot button
+        5   P1 joystick left
+        6   P1 joystick right
+        7   ?
+*/
 void CPU::handle_input()
 {
     sf::Event ev;
@@ -1222,6 +1237,26 @@ int CPU::disassemble(uint8_t opcode)
     }
     return cycles;
 }
+void CPU::play_sounds()
+{
+    if(out_port3 != last_out_port3){
+        if ((out_port3 & 0x2) && !(last_out_port3 & 0x2)){
+            sb.loadFromFile("1.wav");
+            sound.play();
+        }
+        if ((out_port3 & 0x4) && !(last_out_port3 & 0x4)){
+            sb.loadFromFile("2.wav");
+            sound.play();
+        }
+        if ((out_port3 & 0x8) && !(last_out_port3 & 0x8))
+        {
+            sb.loadFromFile("3.wav");
+            sound.play();
+        }
+        last_out_port3 = out_port3;
+    }
+
+}
 void CPU::cpu_run(long cycles)
 {
     int i = 0;
@@ -1242,13 +1277,19 @@ void CPU::cpu_run(long cycles)
             else if (RAM[pc] == 4)
             { // Set data in shift register
                 shift_register = (A << 8) | (shift_register >> 8);
+            }else if(RAM[pc] == 3){
+                out_port3 = A;
+            }else if(RAM[pc] == 5){
+                out_port5 = A;
             }
+            play_sounds();
         }
         else if (opcode == 0xdb)
         { // IN
             if (RAM[pc] == 3)
             { // Shift and read data
                 A = shift_register >> (8 - shift_amount);
+
             }
         }
         i += disassemble(opcode);
@@ -1256,7 +1297,6 @@ void CPU::cpu_run(long cycles)
 }
 void CPU::render()
 {
-
     int i = 0x2400; // Start of Video RAM
     window->clear(sf::Color::Black);
     for (int col = 0; col < WIDTH; col++)
@@ -1287,7 +1327,6 @@ void CPU::render()
         }
     }
     texture.update(pixels);
-    sprite.setTexture(texture);
     window->draw(sprite);
     window->display();
 }
@@ -1302,13 +1341,11 @@ void CPU::run()
             last_tic = timer.getElapsedTime().asMilliseconds();
 
             cpu_run(CYCLES_PER_TIC / 2);
-
             if (interrupt_enabled)
             {
                 generate_interrupt(0x08);
             }
             cpu_run(CYCLES_PER_TIC / 2);
-
             handle_input();
             render();
             if (interrupt_enabled)
